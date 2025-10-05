@@ -5,10 +5,9 @@ OBJS := $(shell find . -name '*.c' -not -path "./.git/*" |sed -e 's,\.\(.*\).c,$
 KOS_CSTD := -std=c23
 CC=kos-cc
 
-
-
 DTTEXTURES:=$(shell find assets/textures -name '*.png'| sed -e 's,assets/textures/\(.*\)/\([a-z_A-Z0-9]*\).png,$(BUILDDIR)/pvrtex/\1/\2.dt,g')
 
+.PRECIOUS: $(DTTEXTURES)
 
 LDLIBS 	:= -lm -lm -lkosutils
 
@@ -39,24 +38,15 @@ KOS_CFLAGS+=\
 		-ffunction-sections -fdata-sections -ftls-model=local-exec \
 		-m4-single-only 
 
-all: rm-elf ${TARGETNAME}.elf
+${TARGETNAME}.elf: $(OBJS)
+	$(CC) $(KOS_CFLAGS) $(LDLIBS) $(OBJS) -o $@ 
 
 include $(KOS_BASE)/Makefile.rules
 
-clean:
-	-rm -f ${TARGETNAME}.elf ${TARGETNAME}.cdi $(OBJS) $(DTTEXTURES)
-
-rm-elf:
-	-rm -f ${TARGETNAME}.elf
-
-
-$(BUILDDIR)/%.o: %.c Makefile ${LHEADERS} $(DTTEXTURES)
+$(BUILDDIR)/%.o: %.c Makefile $(DTTEXTURES) 
 	@mkdir -p $(shell dirname $@)
 	$(CC) $(KOS_CFLAGS) $(LDLIBS) -c $< -o $@
 
-
-${TARGETNAME}.elf: $(OBJS) 
-	$(CC) $(KOS_CFLAGS) -o $@  $(LDLIBS) $(OBJS) 
 
 TEXDIR_PAL4=$(BUILDDIR)/pvrtex/pal4
 $(TEXDIR_PAL4):
@@ -82,10 +72,14 @@ $(TEXDIR_ARGB1555_VQ_TW):
 $(TEXDIR_ARGB1555_VQ_TW)/%.dt: assets/textures/argb1555_vq_tw/%.png $(TEXDIR_ARGB1555_VQ_TW)
 	pvrtex -f ARGB1555 -c -i $< -o $@
 
+cdi: ${TARGETNAME}.elf
+	mkdcdisc -n ${TARGETNAME} -e $<  -N -o ${TARGETNAME}.cdi -v 3 -m
 
-run: $(TARGET)
-	$(KOS_LOADER) $(TARGET)
+run: ${TARGETNAME}.elf
+	$(KOS_LOADER) ${TARGETNAME}.elf
 
 dist:
-	rm -f $(OBJS)
-	$(KOS_STRIP) $(TARGET)
+	$(KOS_STRIP) ${TARGETNAME}.elf
+
+clean:
+	-rm -rf ${TARGETNAME}.elf ${TARGETNAME}.cdi "$(BUILDDIR)/"

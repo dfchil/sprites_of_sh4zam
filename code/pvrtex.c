@@ -7,8 +7,8 @@
 
 #include <sh4zamsprites/tex_loader.h>
 
-int pvrtex_load_blob(uint8_t* data, dttex_info_t* texinfo) {
-    memcpy(texinfo, data, sizeof(dt_header_t));
+int pvrtex_load_blob(const void* data, dttex_info_t* texinfo) {
+    memcpy(&texinfo->hdr, data, sizeof(dt_header_t));
     if (texinfo->hdr.fourcc[0] != 'D' || texinfo->hdr.fourcc[1] != 'c' ||
         texinfo->hdr.fourcc[2] != 'T' || texinfo->hdr.fourcc[3] != 'x') {
         printf("Error: not valid DcTx data\n");
@@ -37,14 +37,12 @@ int pvrtex_load_blob(uint8_t* data, dttex_info_t* texinfo) {
 
     texinfo->pvrformat = texinfo->hdr.pvr_type & 0xFFC00000;
 
-    void* buffer = ((void*)texinfo) + sizeof(dttex_info_t);
-
     texinfo->ptr = pvr_mem_malloc(tdatasize);
     if (texinfo->ptr == NULL) {
         printf("Error: pvr_mem_malloc failed\n");
         return 0;
     }
-    pvr_txr_load(buffer, texinfo->ptr, tdatasize);
+    pvr_txr_load(data + sizeof(dt_header_t), texinfo->ptr, tdatasize);
     return 1;
 }
 
@@ -71,16 +69,15 @@ int pvrtex_load_file(const char* filename, dttex_info_t* texinfo) {
     size_t tdatasize =
         texinfo->hdr.chunk_size - ((1 + texinfo->hdr.header_size) << 5);
 
-    void* buffer = malloc(tdatasize + sizeof(dttex_info_t));
+    void* buffer = malloc(tdatasize + sizeof(dt_header_t));
     if (!buffer) {
         printf("Error allocating memory for texture data from file %s\n",
                filename);
         fclose(file);
         return 0;
     }
-
-    fseek(file, 0, SEEK_SET);
-    if (fread(buffer, tdatasize + sizeof(dttex_info_t), 1, file) != 1) {
+    memcpy(buffer, texinfo, sizeof(dt_header_t));
+    if (fread(buffer + sizeof(dt_header_t), tdatasize , 1, file) != 1) {
         printf("Error reading texture data from file %s\n", filename);
         free(buffer);
         fclose(file);
@@ -92,7 +89,7 @@ int pvrtex_load_file(const char* filename, dttex_info_t* texinfo) {
     return result;
 }
 
-int pvrtex_load_palette_blob(void* raw_data, int fmt, size_t offset) {
+int pvrtex_load_palette_blob(const void* raw_data, int fmt, size_t offset) {
     struct {
         char fourcc[4];
         size_t colors;

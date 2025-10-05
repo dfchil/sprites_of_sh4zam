@@ -55,7 +55,7 @@ int pvrtex_load_file(const char *filename, dttex_info_t *texinfo);
 
  * - PVR_PAL_ARGB1555: 16-bit ARGB
  */
-int pvrtex_load_palette_blob(void* raw_data, int fmt, size_t offset);
+int pvrtex_load_palette_blob(const void* raw_data, int fmt, size_t offset);
 
 
 /**
@@ -79,10 +79,11 @@ int pvrtex_load_palette_file(const char *filename, int fmt, size_t offset);
 /**
  * @brief Load a texture from a file
  *
- * @param texinfo The texture info structure, followed in memory by the texture data
+ * @param data The raw data of the texture
+ * @param texinfo The texture texinfo struct to fill
  * @return int 1 on success, 0 on failure
  */
-int pvrtex_load_blob(dttex_info_t* texinfo);
+int pvrtex_load_blob(const void* data, dttex_info_t* texinfo);
 
 /**
  * @brief Unload a texture from memory
