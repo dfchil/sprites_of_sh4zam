@@ -1,4 +1,4 @@
-TARGETNAME = sha4zamsprites
+TARGETNAME = sh4zamsprites
 BUILDDIR=build
 OBJS := $(shell find . -name '*.c' -not -path "./.git/*" |sed -e 's,\.\(.*\).c,$(BUILDDIR)\1.o,g')
 
@@ -36,14 +36,15 @@ KOS_CFLAGS+=\
 		-ml \
 		-matomic-model=soft-imask \
 		-ffunction-sections -fdata-sections -ftls-model=local-exec \
-		-m4-single-only 
+		-m4-single-only \
+		-O3 
 
 ${TARGETNAME}.elf: $(OBJS)
 	$(CC) $(KOS_CFLAGS) $(LDLIBS) $(OBJS) -o $@ 
 
 include $(KOS_BASE)/Makefile.rules
 
-$(BUILDDIR)/%.o: %.c Makefile $(DTTEXTURES) 
+$(BUILDDIR)/%.o: %.c Makefile $(DTTEXTURES)
 	@mkdir -p $(shell dirname $@)
 	$(CC) $(KOS_CFLAGS) $(LDLIBS) -c $< -o $@
 

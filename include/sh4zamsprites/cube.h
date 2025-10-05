@@ -61,10 +61,10 @@ struct cube {
 } cube_state __attribute__((aligned(32))) = {0};
 
 const float cube_tex_coords[4][2] = {
-    {0, 0}, // left bottom
-    {0, 1}, // left top
-    {1, 0}, // right bottom
-    {1, 1}, // right top
+  {1, 1}, // right bottom
+  {1, 0}, // right top
+    {0, 1}, // left bottom
+    {0, 0}, // left top
 };
 
 #endif // CUBE_H

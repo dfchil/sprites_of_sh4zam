@@ -54,16 +54,17 @@ static uint32_t dpad_right_down = 0;
 static const uint8_t texture256_raw[] = {
 #embed "../build/pvrtex/rgb565_vq_tw/sh4zam256.dt"
 };
+static const uint8_t texture32_raw[] = {
+  #embed "../build/pvrtex/pal4/sh4zam32_w.dt"
+};
+
 static const uint8_t texture64_raw[] = {
 #embed "../build/pvrtex/pal8/sh4zam64_w.dt"
 };
-static const uint8_t texture32_raw[] = {
-#embed "../build/pvrtex/pal4/sh4zam32_w.dt"
+static const uint8_t palette64_raw[] = {
+  #embed "../build/pvrtex/pal8/sh4zam64_w.dt.pal"
 };
 
-static const uint8_t palette256_raw[] = {
-#embed "../build/pvrtex/pal8/sh4zam64_w.dt.pal"
-};
 static const uint8_t palette32_raw[] = {
 #embed "../build/pvrtex/pal4/sh4zam32_w.dt.pal"
 };
@@ -476,7 +477,7 @@ int main(int argc, char *argv[]) {
     return -1;
   if (!pvrtex_load_blob(&texture32_raw, &texture32))
     return -1;
-  if (!pvrtex_load_palette_blob(palette256_raw, PVR_PAL_RGB565, 256))
+  if (!pvrtex_load_palette_blob(palette64_raw, PVR_PAL_RGB565, 256))
     return -1;
 
   cube_reset_state();
