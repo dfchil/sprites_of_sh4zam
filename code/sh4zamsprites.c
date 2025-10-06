@@ -31,10 +31,10 @@
 #include <sh4zam/shz_sh4zam.h>
 
 #define DEFAULT_FOV 75.0f // Field of view, adjust with dpad up/down
-#define ZOOM_SPEED 0.3f
+#define ZOOM_SPEED 1.0f
 #define MODEL_SCALE 3.0f
-#define MIN_ZOOM -10.0f
-#define MAX_ZOOM 15.0f
+#define MIN_ZOOM -1000.0f
+#define MAX_ZOOM 1500.0f
 #define LINE_WIDTH 1.0f
 #define WIREFRAME_MIN_GRID_LINES 0
 #define WIREFRAME_MAX_GRID_LINES 10
@@ -72,7 +72,7 @@ static dttex_info_t texture32 __attribute__((aligned(32)));
 
 static inline void set_cube_transform() {
   shz_xmtrx_load_4x4(&stored_projection_view);
-  shz_xmtrx_set_translation(cube_state.pos.x, cube_state.pos.y, cube_state.pos.z);
+  shz_xmtrx_apply_translation(cube_state.pos.x, cube_state.pos.y, cube_state.pos.z);
   shz_xmtrx_apply_scale(MODEL_SCALE * XSCALE, MODEL_SCALE, MODEL_SCALE);
   shz_xmtrx_apply_rotation_x(cube_state.rot.x);
   shz_xmtrx_apply_rotation_y(cube_state.rot.y);
@@ -412,17 +412,17 @@ static inline int update_state() {
   }
   if (abs(state->joyx) > 16)
     cube_state.pos.x +=
-        (state->joyx / 1.0f); // Increased sensitivity
+        XSCALE * (state->joyx / 1.0f); // Increased sensitivity
   if (abs(state->joyy) > 16)
     cube_state.pos.y += (state->joyy / 1.0f); // Increased sensitivity and inverted Y
   if (state->ltrig > 16)       // Left trigger to zoom out
     cube_state.pos.z -= (state->ltrig / 1.0f) * ZOOM_SPEED;
   if (state->rtrig > 16) // Right trigger to zoom in
     cube_state.pos.z += (state->rtrig / 1.f) * ZOOM_SPEED;
-  if (cube_state.pos.z < MIN_ZOOM)
-    cube_state.pos.z = MIN_ZOOM; // Farther away
-  if (cube_state.pos.z > MAX_ZOOM)
-    cube_state.pos.z = MAX_ZOOM; // Closer to the screen
+  // if (cube_state.pos.z < MIN_ZOOM)
+  //   cube_state.pos.z = MIN_ZOOM; // Farther away
+  // if (cube_state.pos.z > MAX_ZOOM)
+  //   cube_state.pos.z = MAX_ZOOM; // Closer to the screen
   if (state->buttons & CONT_X)
     cube_state.speed.y += 0.001f;
   if (state->buttons & CONT_B)
