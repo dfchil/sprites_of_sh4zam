@@ -12,6 +12,43 @@ DTTEXTURES:=$(shell find assets/textures -name '*.png'| sed -e 's,assets/texture
 LDLIBS 	:= -lm -lm -lkosutils
 
 
+DEFINES=
+ifdef RELEASEBUILD
+	DEFINES += -s -DRELEASEBUILD
+else
+	DEFINES += -g
+endif
+
+ifdef OPTLEVEL
+	DEFINES += -O${OPTLEVEL}
+else
+	DEFINES += -O3
+endif
+
+ifdef DCTRACE
+DEFINES += -finstrument-functions -DDCTRACE
+OBJS += ./profilers/dcprofiler.o
+endif 
+
+ifdef SHOWFRAMETIMES
+	DEFINES += -DSHOWFRAMETIMES=${SHOWFRAMETIMES}
+endif
+
+ifdef BASEPATH
+	DEFINES += -DBASEPATH="${BASEPATH}/${TARGETNAME}/"
+endif
+	
+ifdef DEBUG
+	DEFINES += -DDEBUG
+endif
+
+ifdef DCPROF
+	OBJS += ./profilers/dcprof/profiler.o
+	DEFINES += -DDCPROF
+endif
+
+
+
 INCLUDES= -I$(KOS_BASE)/include \
 		-I$(KOS_BASE)/kernel/arch/dreamcast/include \
 		-I$(KOS_BASE)/addons/include \
@@ -37,7 +74,8 @@ KOS_CFLAGS+=\
 		-matomic-model=soft-imask \
 		-ffunction-sections -fdata-sections -ftls-model=local-exec \
 		-m4-single-only \
-		-O3 
+		${DEFINES} \
+
 
 ${TARGETNAME}.elf: $(OBJS)
 	$(CC) $(KOS_CFLAGS) $(LDLIBS) $(OBJS) -o $@ 
@@ -83,4 +121,4 @@ dist:
 	$(KOS_STRIP) ${TARGETNAME}.elf
 
 clean:
-	-rm -rf ${TARGETNAME}.elf ${TARGETNAME}.cdi "$(BUILDDIR)/"
+	-rm -rf ${TARGETNAME}.elf ${TARGETNAME}.cdi $(OBJS)

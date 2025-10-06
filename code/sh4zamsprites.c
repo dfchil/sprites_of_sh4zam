@@ -54,17 +54,17 @@ static uint32_t dpad_right_down = 0;
 static const uint8_t texture256_raw[] = {
 #embed "../build/pvrtex/rgb565_vq_tw/sh4zam256.dt"
 };
+
+static const uint8_t texture128_raw[] = {
+  #embed "../build/pvrtex/argb1555_vq_tw/sh4zam128_t.dt"
+};
+// static const uint8_t palette64_raw[] = {
+//   #embed "../build/pvrtex/pal8/sh4zam64_w.dt.pal"
+// };
+
 static const uint8_t texture32_raw[] = {
-  #embed "../build/pvrtex/pal4/sh4zam32_w.dt"
+#embed "../build/pvrtex/pal4/sh4zam32_w.dt"
 };
-
-static const uint8_t texture64_raw[] = {
-#embed "../build/pvrtex/pal8/sh4zam64_w.dt"
-};
-static const uint8_t palette64_raw[] = {
-  #embed "../build/pvrtex/pal8/sh4zam64_w.dt.pal"
-};
-
 static const uint8_t palette32_raw[] = {
 #embed "../build/pvrtex/pal4/sh4zam32_w.dt.pal"
 };
@@ -143,20 +143,25 @@ void render_txr_tr_cube(void) {
 void render_cubes_cube() {
   set_cube_transform();
   pvr_sprite_cxt_t cxt;
-  pvr_sprite_cxt_col(&cxt, PVR_LIST_OP_POLY);
-  uint32_t cuberoot_cubes = 8;
+  
+  pvr_list_type_t list_type = (render_mode == CUBES_CUBE_MAX) ? PVR_LIST_OP_POLY : PVR_LIST_PT_POLY;
+
+  pvr_sprite_cxt_col(&cxt, list_type);
+  uint32_t cuberoot_cubes = 4
+  ;
   if (render_mode == CUBES_CUBE_MAX) {
     cuberoot_cubes = 17 - SUPERSAMPLING * 2.0f;
     // 15x15x15 cubes, 6 faces per cube, 2 triangles per face @60 fps ==
     // 2430000 triangles pr. second 17*17*16 cubes, or 3329280 triangles pr.
     // second, works with FSAA disabled, set #define SUPERSAMPLING 0
     pvr_sprite_cxt_txr(
-        &cxt, PVR_LIST_OP_POLY, texture32.pvrformat | PVR_TXRFMT_4BPP_PAL(16),
+        &cxt, list_type, texture32.pvrformat | PVR_TXRFMT_4BPP_PAL(16),
         texture32.width, texture32.height, texture32.ptr, PVR_FILTER_BILINEAR);
+    cxt.gen.specular = PVR_SPECULAR_DISABLE;
   } else {
     pvr_sprite_cxt_txr(
-        &cxt, PVR_LIST_OP_POLY, texture64.pvrformat | PVR_TXRFMT_8BPP_PAL(0),
-        texture64.width, texture64.height, texture64.ptr, PVR_FILTER_BILINEAR);
+        &cxt, list_type, texture64.pvrformat,
+        texture64.width, texture64.height, texture64.ptr, PVR_FILTER_NEAREST);
     cxt.gen.specular = PVR_SPECULAR_ENABLE;
   }
   pvr_dr_state_t dr_state;
@@ -459,25 +464,25 @@ int main(int argc, char *argv[]) {
   pvr_set_bg_color(0.0, 0.0, 24.0f / 255.0f);
   pvr_init_params_t params = {
       {PVR_BINSIZE_16, PVR_BINSIZE_0, PVR_BINSIZE_16, PVR_BINSIZE_0,
-       PVR_BINSIZE_0},
+       PVR_BINSIZE_8},
       3 << 20,       // Vertex buffer size, 3MB
       0,             // No DMA15
       SUPERSAMPLING, // Set horisontal FSAA
       0,             // Translucent Autosort enabled.
-      3,             // Extra OPBs
+      2,             // Extra OPBs
       0,             // vbuf_doublebuf_disabled
   };
   pvr_init(&params);
   pvr_set_bg_color(0, 0, 0);
   if (!pvrtex_load_blob(&texture256_raw, &texture256))
     return -1;
-  if (!pvrtex_load_blob(&texture64_raw, &texture64))
+  if (!pvrtex_load_blob(&texture128_raw, &texture64))
     return -1;
-  if (!pvrtex_load_palette_blob(palette32_raw, PVR_PAL_RGB565, 0))
-    return -1;
+  // if (!pvrtex_load_palette_blob(palette64_raw, PVR_PAL_ARGB1555, 0))
+  //   return -1;
   if (!pvrtex_load_blob(&texture32_raw, &texture32))
     return -1;
-  if (!pvrtex_load_palette_blob(palette64_raw, PVR_PAL_RGB565, 256))
+  if (!pvrtex_load_palette_blob(palette32_raw, PVR_PAL_RGB565, 256))
     return -1;
 
   cube_reset_state();
@@ -504,8 +509,12 @@ int main(int argc, char *argv[]) {
       pvr_list_finish();
       break;
     case CUBES_CUBE_MAX:
-    case CUBES_CUBE_MIN:
       pvr_list_begin(PVR_LIST_OP_POLY);
+      render_cubes_cube();
+      pvr_list_finish();
+      break;
+    case CUBES_CUBE_MIN:
+      pvr_list_begin(PVR_LIST_PT_POLY);
       render_cubes_cube();
       pvr_list_finish();
       break;
