@@ -2,14 +2,14 @@ TARGETNAME = sh4zamsprites
 BUILDDIR=build
 OBJS := $(shell find . -name '*.c' -not -path "./.git/*" |sed -e 's,\.\(.*\).c,$(BUILDDIR)\1.o,g')
 
-KOS_CSTD := -std=c23
+KOS_CSTD := -std=gnu23
 CC=kos-cc
 
 DTTEXTURES:=$(shell find assets/textures -name '*.png'| sed -e 's,assets/textures/\(.*\)/\([a-z_A-Z0-9]*\).png,$(BUILDDIR)/pvrtex/\1/\2.dt,g')
 
 .PRECIOUS: $(DTTEXTURES)
 
-LDLIBS 	:= -lm -lm -lkosutils
+LDLIBS 	:= -lm -lm -lkosutils -lsh4zam
 
 
 DEFINES=
@@ -55,10 +55,9 @@ INCLUDES= -I$(KOS_BASE)/include \
 		-I$(KOS_BASE)/../kos-ports/include \
 		-I$(KOS_BASE)/utils \
 		-I$(shell pwd)/include \
-		-I$(shell pwd)/build	 \
 
 
-KOS_CFLAGS+=\
+CFLAGS+=\
 		$(KOS_CSTD) \
 		$(INCLUDES) \
 		-D__DREAMCAST__  \
@@ -74,17 +73,20 @@ KOS_CFLAGS+=\
 		-matomic-model=soft-imask \
 		-ffunction-sections -fdata-sections -ftls-model=local-exec \
 		-m4-single-only \
+		$(LDLIBS) \
 		${DEFINES} \
 
 
+all: ${TARGETNAME}.elf
+
 ${TARGETNAME}.elf: $(OBJS)
-	$(CC) $(KOS_CFLAGS) $(LDLIBS) $(OBJS) -o $@ 
+	$(CC) $(CFLAGS)  $(OBJS) -o $@ 
 
 include $(KOS_BASE)/Makefile.rules
 
 $(BUILDDIR)/%.o: %.c Makefile $(DTTEXTURES)
 	@mkdir -p $(shell dirname $@)
-	$(CC) $(KOS_CFLAGS) $(LDLIBS) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 
 TEXDIR_PAL4=$(BUILDDIR)/pvrtex/pal4

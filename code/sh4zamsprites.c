@@ -28,6 +28,9 @@
 #include <sh4zamsprites/perspective.h> /* Perspective projection matrix functions */
 #include <sh4zamsprites/tex_loader.h> /* texture management */
 
+#include <sh4zam/shz_sh4zam.h>
+
+
 #define DEFAULT_FOV 75.0f // Field of view, adjust with dpad up/down
 #define ZOOM_SPEED 0.3f
 #define MODEL_SCALE 3.0f
@@ -147,7 +150,7 @@ void render_cubes_cube() {
   pvr_list_type_t list_type = (render_mode == CUBES_CUBE_MAX) ? PVR_LIST_OP_POLY : PVR_LIST_PT_POLY;
 
   pvr_sprite_cxt_col(&cxt, list_type);
-  uint32_t cuberoot_cubes = 4
+  uint32_t cuberoot_cubes = 3
   ;
   if (render_mode == CUBES_CUBE_MAX) {
     cuberoot_cubes = 17 - SUPERSAMPLING * 2.0f;
@@ -163,6 +166,7 @@ void render_cubes_cube() {
         &cxt, list_type, texture64.pvrformat,
         texture64.width, texture64.height, texture64.ptr, PVR_FILTER_NEAREST);
     cxt.gen.specular = PVR_SPECULAR_ENABLE;
+    cxt.gen.culling = PVR_CULLING_NONE;
   }
   pvr_dr_state_t dr_state;
   pvr_dr_init(&dr_state);

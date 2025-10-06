@@ -4,8 +4,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/param.h>
+#include <sh4zam/shz_sh4zam.h>
+#include <malloc.h>
 
-#include <sh4zamsprites/tex_loader.h>
 
 int pvrtex_load_blob(const void* data, dttex_info_t* texinfo) {
     memcpy(&texinfo->hdr, data, sizeof(dt_header_t));
@@ -69,7 +70,7 @@ int pvrtex_load_file(const char* filename, dttex_info_t* texinfo) {
     size_t tdatasize =
         texinfo->hdr.chunk_size - ((1 + texinfo->hdr.header_size) << 5);
 
-    void* buffer = malloc(tdatasize + sizeof(dt_header_t));
+    void* buffer = memalign(32, tdatasize + sizeof(dt_header_t));
     if (!buffer) {
         printf("Error allocating memory for texture data from file %s\n",
                filename);
@@ -148,7 +149,7 @@ int pvrtex_load_palette_file(const char* filename, int fmt, size_t offset) {
             break;
         }
         void* raw_data =
-            malloc(palette_hdr.colors * sizeof(uint32_t) + sizeof(palette_hdr));
+            memalign(32, palette_hdr.colors * sizeof(uint32_t) + sizeof(palette_hdr));
         if (!raw_data) {
             printf("Error allocating memory for palette colors from file %s\n",
                    filename);
