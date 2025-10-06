@@ -2,7 +2,9 @@
 #define CUBE_H
 
 #include <stdint.h>
-#include <dc/vec3f.h>
+
+#include <sh4zam/shz_sh4zam.h>
+
 
 /**  Cube vertices and side strips layout:
      7*-----------*5
@@ -17,7 +19,7 @@
 
 #define CUBEEXTENT 1.0f
 
-static vec3f_t cube_vertices[8] __attribute__((aligned(32))) = {
+static shz_vec3_t cube_vertices[8] __attribute__((aligned(32))) = {
     {.x = -CUBEEXTENT, .y = -CUBEEXTENT, .z = +CUBEEXTENT}, // 0
     {.x = -CUBEEXTENT, .y = +CUBEEXTENT, .z = +CUBEEXTENT}, // 1
     {.x = +CUBEEXTENT, .y = -CUBEEXTENT, .z = +CUBEEXTENT}, // 2
@@ -60,11 +62,11 @@ struct cube {
   uint32_t grid_size;
 } cube_state __attribute__((aligned(32))) = {0};
 
-const float cube_tex_coords[4][2] = {
+const float cube_tex_coords[4][2] __attribute__((aligned(32))) = {
   {1, 1}, // right bottom
   {1, 0}, // right top
-    {0, 1}, // left bottom
-    {0, 0}, // left top
+  {0, 1}, // left bottom
+  {0, 0}, // left top
 };
 
 #endif // CUBE_H

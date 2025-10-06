@@ -30,7 +30,6 @@
 
 #include <sh4zam/shz_sh4zam.h>
 
-
 #define DEFAULT_FOV 75.0f // Field of view, adjust with dpad up/down
 #define ZOOM_SPEED 0.3f
 #define MODEL_SCALE 3.0f
@@ -54,42 +53,37 @@ static render_mode_e render_mode = TEXTURED_TR;
 static float fovy = DEFAULT_FOV;
 static uint32_t dpad_right_down = 0;
 
-static const uint8_t texture256_raw[] = {
+static const uint8_t texture256_raw[] __attribute__((aligned(32))) = {
 #embed "../build/pvrtex/rgb565_vq_tw/sh4zam256.dt"
 };
-
-static const uint8_t texture128_raw[] = {
-  #embed "../build/pvrtex/argb1555_vq_tw/sh4zam128_t.dt"
+static const uint8_t texture128_raw[] __attribute__((aligned(32))) = {
+#embed "../build/pvrtex/argb1555_vq_tw/sh4zam128_t.dt"
 };
-// static const uint8_t palette64_raw[] = {
-//   #embed "../build/pvrtex/pal8/sh4zam64_w.dt.pal"
-// };
-
-static const uint8_t texture32_raw[] = {
+static const uint8_t texture32_raw[] __attribute__((aligned(32))) = {
 #embed "../build/pvrtex/pal4/sh4zam32_w.dt"
 };
-static const uint8_t palette32_raw[] = {
+static const uint8_t palette32_raw[] __attribute__((aligned(32))) = {
 #embed "../build/pvrtex/pal4/sh4zam32_w.dt.pal"
 };
 
-static dttex_info_t texture256;
-static dttex_info_t texture64;
-static dttex_info_t texture32;
+static dttex_info_t texture256 __attribute__((aligned(32)));
+static dttex_info_t texture128 __attribute__((aligned(32)));
+static dttex_info_t texture32 __attribute__((aligned(32)));
 
 static inline void set_cube_transform() {
-  mat_load(&stored_projection_view);
-  mat_translate(cube_state.pos.x, cube_state.pos.y, cube_state.pos.z);
-  mat_scale(MODEL_SCALE * XSCALE, MODEL_SCALE, MODEL_SCALE);
-  mat_rotate_x(cube_state.rot.x);
-  mat_rotate_y(cube_state.rot.y);
+  shz_xmtrx_load_4x4(&stored_projection_view);
+  shz_xmtrx_set_translation(cube_state.pos.x, cube_state.pos.y, cube_state.pos.z);
+  shz_xmtrx_apply_scale(MODEL_SCALE * XSCALE, MODEL_SCALE, MODEL_SCALE);
+  shz_xmtrx_apply_rotation_x(cube_state.rot.x);
+  shz_xmtrx_apply_rotation_y(cube_state.rot.y);
 }
 
-static inline void draw_textured_sprite(vec3f_t *tverts, uint32_t side,
+static inline void draw_textured_sprite(shz_vec3_t *tverts, uint32_t side,
                                         pvr_dr_state_t *dr_state) {
-  vec3f_t *ac = tverts + cube_side_strips[side][0];
-  vec3f_t *bc = tverts + cube_side_strips[side][2];
-  vec3f_t *cc = tverts + cube_side_strips[side][3];
-  vec3f_t *dc = tverts + cube_side_strips[side][1];
+  shz_vec3_t *ac = tverts + cube_side_strips[side][0];
+  shz_vec3_t *bc = tverts + cube_side_strips[side][2];
+  shz_vec3_t *cc = tverts + cube_side_strips[side][3];
+  shz_vec3_t *dc = tverts + cube_side_strips[side][1];
   pvr_sprite_txr_t *quad = (pvr_sprite_txr_t *)pvr_dr_target(*dr_state);
   quad->flags = PVR_CMD_VERTEX_EOL;
   quad->ax = ac->x;
@@ -119,9 +113,9 @@ static inline void draw_textured_sprite(vec3f_t *tverts, uint32_t side,
 
 void render_txr_tr_cube(void) {
   set_cube_transform();
-  vec3f_t tverts[8] __attribute__((aligned(32))) = {0};
+  shz_vec3_t tverts[8] __attribute__((aligned(32))) = {0};
   mat_transform((vector_t *)&cube_vertices, (vector_t *)&tverts, 8,
-                sizeof(vec3f_t));
+                sizeof(shz_vec3_t));
   pvr_dr_state_t dr_state;
   pvr_sprite_cxt_t cxt;
   pvr_sprite_cxt_txr(&cxt, PVR_LIST_TR_POLY, texture256.pvrformat,
@@ -146,12 +140,12 @@ void render_txr_tr_cube(void) {
 void render_cubes_cube() {
   set_cube_transform();
   pvr_sprite_cxt_t cxt;
-  
-  pvr_list_type_t list_type = (render_mode == CUBES_CUBE_MAX) ? PVR_LIST_OP_POLY : PVR_LIST_PT_POLY;
+
+  pvr_list_type_t list_type =
+      (render_mode == CUBES_CUBE_MAX) ? PVR_LIST_OP_POLY : PVR_LIST_PT_POLY;
 
   pvr_sprite_cxt_col(&cxt, list_type);
-  uint32_t cuberoot_cubes = 3
-  ;
+  uint32_t cuberoot_cubes = 3;
   if (render_mode == CUBES_CUBE_MAX) {
     cuberoot_cubes = 17 - SUPERSAMPLING * 2.0f;
     // 15x15x15 cubes, 6 faces per cube, 2 triangles per face @60 fps ==
@@ -162,9 +156,8 @@ void render_cubes_cube() {
         texture32.width, texture32.height, texture32.ptr, PVR_FILTER_BILINEAR);
     cxt.gen.specular = PVR_SPECULAR_DISABLE;
   } else {
-    pvr_sprite_cxt_txr(
-        &cxt, list_type, texture64.pvrformat,
-        texture64.width, texture64.height, texture64.ptr, PVR_FILTER_NEAREST);
+    pvr_sprite_cxt_txr(&cxt, list_type, texture128.pvrformat, texture128.width,
+                       texture128.height, texture128.ptr, PVR_FILTER_NEAREST);
     cxt.gen.specular = PVR_SPECULAR_ENABLE;
     cxt.gen.culling = PVR_CULLING_NONE;
   }
@@ -179,14 +172,14 @@ void render_cubes_cube() {
     *hdrptr = hdr;
     pvr_dr_commit(hdrptr);
   }
-  vec3f_t cube_min = cube_vertices[6];
-  vec3f_t cube_max = cube_vertices[3];
-  vec3f_t cube_step = {
+  shz_vec3_t cube_min = cube_vertices[6];
+  shz_vec3_t cube_max = cube_vertices[3];
+  shz_vec3_t cube_step = {
       (cube_max.x - cube_min.x) / cuberoot_cubes,
       (cube_max.y - cube_min.y) / cuberoot_cubes,
       (cube_max.z - cube_min.z) / cuberoot_cubes,
   };
-  vec3f_t cube_size = {
+  shz_vec3_t cube_size = {
       cube_step.x * 0.75f,
       cube_step.y * 0.75f,
       cube_step.z * 0.75f,
@@ -205,10 +198,10 @@ void render_cubes_cube() {
           hdrpntr->oargb = cube_side_colors[(cx + cy + cz) % 6];
           pvr_dr_commit(hdrpntr);
         }
-        vec3f_t cube_pos = {cube_min.x + cube_step.x * (float)cx,
+        shz_vec3_t cube_pos = {cube_min.x + cube_step.x * (float)cx,
                             cube_min.y + cube_step.y * (float)cy,
                             cube_min.z + cube_step.z * (float)cz};
-        vec3f_t tverts[8] __attribute__((aligned(32))) = {
+        shz_vec3_t tverts[8] __attribute__((aligned(32))) = {
             {.x = cube_pos.x, .y = cube_pos.y, .z = cube_pos.z + cube_size.z},
             {.x = cube_pos.x,
              .y = cube_pos.y + cube_size.y,
@@ -226,7 +219,7 @@ void render_cubes_cube() {
             {.x = cube_pos.x, .y = cube_pos.y, .z = cube_pos.z},
             {.x = cube_pos.x, .y = cube_pos.y + cube_size.y, .z = cube_pos.z}};
         mat_transform((vector_t *)&tverts, (vector_t *)&tverts, 8,
-                      sizeof(vec3f_t));
+                      sizeof(shz_vec3_t));
         for (int i = 0; i < 6; i++) {
           draw_textured_sprite(tverts, i, &dr_state);
         }
@@ -236,16 +229,16 @@ void render_cubes_cube() {
   pvr_dr_finish();
 }
 
-static inline void draw_sprite_line(vec3f_t *from, vec3f_t *to, float centerz,
+static inline void draw_sprite_line(shz_vec3_t *from, shz_vec3_t *to, float centerz,
                                     pvr_dr_state_t *dr_state) {
   pvr_sprite_col_t *quad = (pvr_sprite_col_t *)pvr_dr_target(*dr_state);
   quad->flags = PVR_CMD_VERTEX_EOL;
   if (from->x > to->x) {
-    vec3f_t *tmp = from;
+    shz_vec3_t *tmp = from;
     from = to;
     to = tmp;
   }
-  vec3f_t direction = {to->x - from->x, to->y - from->y, to->z - from->z};
+  shz_vec3_t direction = {to->x - from->x, to->y - from->y, to->z - from->z};
   vec3f_normalize(direction.x, direction.y, direction.z);
   quad->ax = from->x;
   quad->ay = from->y;
@@ -264,9 +257,9 @@ static inline void draw_sprite_line(vec3f_t *from, vec3f_t *to, float centerz,
   pvr_dr_commit(quad);
 }
 
-void render_wire_grid(vec3f_t *min, vec3f_t *max, vec3f_t *dir1, vec3f_t *dir2,
+void render_wire_grid(shz_vec3_t *min, shz_vec3_t *max, shz_vec3_t *dir1, shz_vec3_t *dir2,
                       int num_lines, uint32_t color, pvr_dr_state_t *dr_state) {
-  vec3f_t step = {(max->x - min->x) / (num_lines + 1),
+  shz_vec3_t step = {(max->x - min->x) / (num_lines + 1),
                   (max->y - min->y) / (num_lines + 1),
                   (max->z - min->z) / (num_lines + 1)};
   if (color != 0) {
@@ -278,11 +271,11 @@ void render_wire_grid(vec3f_t *min, vec3f_t *max, vec3f_t *dir1, vec3f_t *dir2,
     hdrpntr->argb = color;
     pvr_dr_commit(hdrpntr);
   }
-  vec3f_t twolines[4] = {0};
-  vec3f_t *from_v = twolines + 0;
-  vec3f_t *to_v = twolines + 1;
-  vec3f_t *from_h = twolines + 2;
-  vec3f_t *to_h = twolines + 3;
+  shz_vec3_t twolines[4] = {0};
+  shz_vec3_t *from_v = twolines + 0;
+  shz_vec3_t *to_v = twolines + 1;
+  shz_vec3_t *from_h = twolines + 2;
+  shz_vec3_t *to_h = twolines + 3;
   for (int i = 1; i <= num_lines; i++) {
     from_v->x = min->x + i * step.x * dir1->x;
     from_v->y = min->y + i * step.y * dir1->y;
@@ -297,7 +290,7 @@ void render_wire_grid(vec3f_t *min, vec3f_t *max, vec3f_t *dir1, vec3f_t *dir2,
     to_h->y = dir2->y == 0.0f ? max->y : min->y + i * step.y * dir2->y;
     to_h->z = dir2->z == 0.0f ? max->z : min->z + i * step.z * dir2->z;
     mat_transform((vector_t *)twolines, (vector_t *)twolines, 4,
-                  sizeof(vec3f_t));
+                  sizeof(shz_vec3_t));
     draw_sprite_line(from_v, to_v, 0, dr_state);
     draw_sprite_line(from_h, to_h, 0, dr_state);
   }
@@ -306,9 +299,9 @@ void render_wire_grid(vec3f_t *min, vec3f_t *max, vec3f_t *dir1, vec3f_t *dir2,
 
 void render_wire_cube(void) {
   set_cube_transform();
-  vec3f_t tverts[8] __attribute__((aligned(32))) = {0};
+  shz_vec3_t tverts[8] __attribute__((aligned(32))) = {0};
   mat_transform((vector_t *)&cube_vertices, (vector_t *)&tverts, 8,
-                sizeof(vec3f_t));
+                sizeof(shz_vec3_t));
   pvr_dr_state_t dr_state;
   pvr_sprite_cxt_t cxt;
   pvr_sprite_cxt_col(&cxt, PVR_LIST_OP_POLY);
@@ -321,24 +314,24 @@ void render_wire_cube(void) {
     hdr.argb = cube_side_colors[i];
     *hdrpntr = hdr;
     pvr_dr_commit(hdrpntr);
-    vec3f_t *ac = tverts + cube_side_strips[i][0];
-    vec3f_t *bc = tverts + cube_side_strips[i][2];
-    vec3f_t *cc = tverts + cube_side_strips[i][3];
-    vec3f_t *dc = tverts + cube_side_strips[i][1];
+    shz_vec3_t *ac = tverts + cube_side_strips[i][0];
+    shz_vec3_t *bc = tverts + cube_side_strips[i][2];
+    shz_vec3_t *cc = tverts + cube_side_strips[i][3];
+    shz_vec3_t *dc = tverts + cube_side_strips[i][1];
     float centerz = (ac->z + bc->z + cc->z + dc->z) / 4.0f;
     draw_sprite_line(ac, dc, centerz, &dr_state);
     draw_sprite_line(bc, cc, centerz, &dr_state);
     draw_sprite_line(dc, cc, centerz, &dr_state);
     draw_sprite_line(ac, bc, centerz, &dr_state);
   }
-  vec3f_t wiredir1 = (vec3f_t){1, 0, 0};
-  vec3f_t wiredir2 = (vec3f_t){0, 1, 0};
+  shz_vec3_t wiredir1 = (shz_vec3_t){1, 0, 0};
+  shz_vec3_t wiredir2 = (shz_vec3_t){0, 1, 0};
   render_wire_grid(cube_vertices + 0, cube_vertices + 3, &wiredir1, &wiredir2,
                    cube_state.grid_size, cube_side_colors[0], &dr_state);
   if (render_mode == WIREFRAME_FILLED) {
     for (uint32_t i = 1; i < cube_state.grid_size + 1; i++) {
-      vec3f_t inner_from = *(cube_vertices + 0);
-      vec3f_t inner_to = *(cube_vertices + 3);
+      shz_vec3_t inner_from = *(cube_vertices + 0);
+      shz_vec3_t inner_to = *(cube_vertices + 3);
       float z_offset =
           i * ((inner_from.x - inner_to.x) / (cube_state.grid_size + 1));
       inner_from.z += z_offset;
@@ -355,8 +348,8 @@ void render_wire_cube(void) {
                    cube_state.grid_size, cube_side_colors[5], &dr_state);
   if (render_mode == WIREFRAME_FILLED) {
     for (uint32_t i = 1; i < cube_state.grid_size + 1; i++) {
-      vec3f_t inner_from = *(cube_vertices + 0);
-      vec3f_t inner_to = *(cube_vertices + 4);
+      shz_vec3_t inner_from = *(cube_vertices + 0);
+      shz_vec3_t inner_to = *(cube_vertices + 4);
       float y_offset =
           i * ((inner_to.x - inner_from.x) / (cube_state.grid_size + 1));
       inner_from.y += y_offset;
@@ -419,14 +412,13 @@ static inline int update_state() {
   }
   if (abs(state->joyx) > 16)
     cube_state.pos.x +=
-        (state->joyx / 32768.0f) * 20.5f; // Increased sensitivity
+        (state->joyx / 1.0f); // Increased sensitivity
   if (abs(state->joyy) > 16)
-    cube_state.pos.y += (state->joyy / 32768.0f) *
-                        20.5f; // Increased sensitivity and inverted Y
+    cube_state.pos.y += (state->joyy / 1.0f); // Increased sensitivity and inverted Y
   if (state->ltrig > 16)       // Left trigger to zoom out
-    cube_state.pos.z -= (state->ltrig / 255.0f) * ZOOM_SPEED;
+    cube_state.pos.z -= (state->ltrig / 1.0f) * ZOOM_SPEED;
   if (state->rtrig > 16) // Right trigger to zoom in
-    cube_state.pos.z += (state->rtrig / 255.0f) * ZOOM_SPEED;
+    cube_state.pos.z += (state->rtrig / 1.f) * ZOOM_SPEED;
   if (cube_state.pos.z < MIN_ZOOM)
     cube_state.pos.z = MIN_ZOOM; // Farther away
   if (cube_state.pos.z > MAX_ZOOM)
@@ -480,7 +472,7 @@ int main(int argc, char *argv[]) {
   pvr_set_bg_color(0, 0, 0);
   if (!pvrtex_load_blob(&texture256_raw, &texture256))
     return -1;
-  if (!pvrtex_load_blob(&texture128_raw, &texture64))
+  if (!pvrtex_load_blob(&texture128_raw, &texture128))
     return -1;
   // if (!pvrtex_load_palette_blob(palette64_raw, PVR_PAL_ARGB1555, 0))
   //   return -1;
@@ -532,7 +524,7 @@ int main(int argc, char *argv[]) {
   }
   printf("Cleaning up\n");
   pvrtex_unload(&texture256);
-  pvrtex_unload(&texture64);
+  pvrtex_unload(&texture128);
   pvrtex_unload(&texture32);
   pvr_shutdown(); // Clean up PVR resources
   vid_shutdown(); // This function reinitializes the video system to what
