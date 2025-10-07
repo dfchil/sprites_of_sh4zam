@@ -182,9 +182,10 @@ void render_cubes_cube() {
   }
   shz_vec4_t *cube_min = cube_vertices + 6;
   shz_vec4_t *cube_max = cube_vertices + 3;
-  shz_vec4_t cube_step = {(cube_max->x - cube_min->x) / cuberoot_cubes,
-                          (cube_max->y - cube_min->y) / cuberoot_cubes,
-                          (cube_max->z - cube_min->z) / cuberoot_cubes, 1.0f};
+  shz_vec4_t cube_step = {
+      shz_divf_fsrra((cube_max->x - cube_min->x), cuberoot_cubes),
+      shz_divf_fsrra((cube_max->y - cube_min->y), cuberoot_cubes),
+      shz_divf_fsrra((cube_max->z - cube_min->z), cuberoot_cubes), 1.0f};
   shz_vec4_t cube_size = {cube_step.x * 0.75f, cube_step.y * 0.75f,
                           cube_step.z * 0.75f, 1.0f};
   int xiterations =
@@ -281,9 +282,9 @@ static inline void draw_sprite_line(shz_vec4_t *from, shz_vec4_t *to,
 void render_wire_grid(shz_vec4_t *min, shz_vec4_t *max, shz_vec4_t *dir1,
                       shz_vec4_t *dir2, int num_lines, uint32_t color,
                       pvr_dr_state_t *dr_state) {
-  shz_vec4_t step = {(max->x - min->x) / (num_lines + 1),
-                     (max->y - min->y) / (num_lines + 1),
-                     (max->z - min->z) / (num_lines + 1)};
+  shz_vec4_t step = {shz_divf_fsrra((max->x - min->x), (num_lines + 1.0f)),
+                     shz_divf_fsrra((max->y - min->y), (num_lines + 1.0f)),
+                     shz_divf_fsrra((max->z - min->z), (num_lines + 1.0f))};
   if (color != 0) {
     pvr_sprite_cxt_t cxt;
     pvr_sprite_cxt_col(&cxt, PVR_LIST_OP_POLY);
