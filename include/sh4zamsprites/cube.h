@@ -19,15 +19,15 @@
 
 #define CUBEEXTENT 1.0f
 
-static shz_vec3_t cube_vertices[8] __attribute__((aligned(32))) = {
-    {.x = -CUBEEXTENT, .y = -CUBEEXTENT, .z = +CUBEEXTENT}, // 0
-    {.x = -CUBEEXTENT, .y = +CUBEEXTENT, .z = +CUBEEXTENT}, // 1
-    {.x = +CUBEEXTENT, .y = -CUBEEXTENT, .z = +CUBEEXTENT}, // 2
-    {.x = +CUBEEXTENT, .y = +CUBEEXTENT, .z = +CUBEEXTENT}, // 3
-    {.x = +CUBEEXTENT, .y = -CUBEEXTENT, .z = -CUBEEXTENT}, // 4
-    {.x = +CUBEEXTENT, .y = +CUBEEXTENT, .z = -CUBEEXTENT}, // 5
-    {.x = -CUBEEXTENT, .y = -CUBEEXTENT, .z = -CUBEEXTENT}, // 6
-    {.x = -CUBEEXTENT, .y = +CUBEEXTENT, .z = -CUBEEXTENT}  // 7
+static shz_vec4_t cube_vertices[8] __attribute__((aligned(32))) = {
+    {.x = -CUBEEXTENT, .y = -CUBEEXTENT, .z = +CUBEEXTENT, 1.0f}, // 0
+    {.x = -CUBEEXTENT, .y = +CUBEEXTENT, .z = +CUBEEXTENT, 1.0f}, // 1
+    {.x = +CUBEEXTENT, .y = -CUBEEXTENT, .z = +CUBEEXTENT, 1.0f}, // 2
+    {.x = +CUBEEXTENT, .y = +CUBEEXTENT, .z = +CUBEEXTENT, 1.0f}, // 3
+    {.x = +CUBEEXTENT, .y = -CUBEEXTENT, .z = -CUBEEXTENT, 1.0f}, // 4
+    {.x = +CUBEEXTENT, .y = +CUBEEXTENT, .z = -CUBEEXTENT, 1.0f}, // 5
+    {.x = -CUBEEXTENT, .y = -CUBEEXTENT, .z = -CUBEEXTENT, 1.0f}, // 6
+    {.x = -CUBEEXTENT, .y = +CUBEEXTENT, .z = -CUBEEXTENT, 1.0f}  // 7
 };
 
 const uint8_t cube_side_strips[6][4] __attribute__((aligned(32))) = {
