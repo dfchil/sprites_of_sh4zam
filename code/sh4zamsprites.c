@@ -31,10 +31,10 @@
 #include <sh4zam/shz_sh4zam.h>
 
 #define DEFAULT_FOV 75.0f // Field of view, adjust with dpad up/down
-#define ZOOM_SPEED 1.0f
+#define ZOOM_SPEED 0.3f
 #define MODEL_SCALE 3.0f
-#define MIN_ZOOM -1000.0f
-#define MAX_ZOOM 1500.0f
+#define MIN_ZOOM -10.0f
+#define MAX_ZOOM 15.0f
 #define LINE_WIDTH 1.0f
 #define WIREFRAME_MIN_GRID_LINES 0
 #define WIREFRAME_MAX_GRID_LINES 10
@@ -422,74 +422,80 @@ static inline void cube_reset_state() {
 }
 
 static inline int update_state() {
-  MAPLE_FOREACH_BEGIN(MAPLE_FUNC_CONTROLLER, cont_state_t, state)
-  if (state->buttons & CONT_START) {
-    return 0;
-  }
-  if (state->buttons & CONT_DPAD_RIGHT) {
-    if (dpad_right_down == 0) {
-      dpad_right_down++;
-      switch (render_mode) {
-      case TEXTURED_TR:
-      case CUBES_CUBE_MIN:
-      case CUBES_CUBE_MAX:
-        render_mode++;
-        break;
-      default:
-        cube_state.grid_size += WIREFRAME_GRID_LINES_STEP;
-        if (cube_state.grid_size > WIREFRAME_MAX_GRID_LINES) {
-          cube_state.grid_size = WIREFRAME_MIN_GRID_LINES;
-          render_mode++;
-          if (render_mode >= MAX_RENDERMODE) {
-            render_mode = TEXTURED_TR;
+  for (int i = 0; i < 4; i++) {
+    maple_device_t *cont = maple_enum_type(i, MAPLE_FUNC_CONTROLLER);
+    if (cont) {
+      cont_state_t *state = (cont_state_t *)maple_dev_status(cont);
+      if (state->buttons & CONT_START) {
+        return 0;
+      }
+      if (state->buttons & CONT_DPAD_RIGHT) {
+        if ((dpad_right_down & (1 << i)) == 0) {
+          dpad_right_down |= (1 << i);
+          switch (render_mode) {
+          case TEXTURED_TR:
+          case CUBES_CUBE_MIN:
+          case CUBES_CUBE_MAX:
+            render_mode++;
+            break;
+          default:
+            cube_state.grid_size += WIREFRAME_GRID_LINES_STEP;
+            if (cube_state.grid_size > WIREFRAME_MAX_GRID_LINES) {
+              cube_state.grid_size = WIREFRAME_MIN_GRID_LINES;
+              render_mode++;
+              if (render_mode >= MAX_RENDERMODE) {
+                render_mode = TEXTURED_TR;
+              }
+            }
           }
         }
+      } else {
+        dpad_right_down &= ~(1 << i);
+      }
+      if (abs(state->joyx) > 16)
+        cube_state.pos.x +=
+            (state->joyx / 32768.0f) * 20.5f; // Increased sensitivity
+      if (abs(state->joyy) > 16)
+        cube_state.pos.y += (state->joyy / 32768.0f) *
+                            20.5f; // Increased sensitivity and inverted Y
+      if (state->ltrig > 16)       // Left trigger to zoom out
+        cube_state.pos.z -= (state->ltrig / 255.0f) * ZOOM_SPEED;
+      if (state->rtrig > 16) // Right trigger to zoom in
+        cube_state.pos.z += (state->rtrig / 255.0f) * ZOOM_SPEED;
+      if (cube_state.pos.z < MIN_ZOOM)
+        cube_state.pos.z = MIN_ZOOM; // Farther away
+      if (cube_state.pos.z > MAX_ZOOM)
+        cube_state.pos.z = MAX_ZOOM; // Closer to the screen
+      if (state->buttons & CONT_X)
+        cube_state.speed.y += 0.001f;
+      if (state->buttons & CONT_B)
+        cube_state.speed.y -= 0.001f;
+      if (state->buttons & CONT_A)
+        cube_state.speed.x += 0.001f;
+      if (state->buttons & CONT_Y)
+        cube_state.speed.x -= 0.001f;
+      if (state->buttons & CONT_DPAD_LEFT) {
+        fovy = DEFAULT_FOV;
+        cube_reset_state();
+      }
+      if (state->buttons & CONT_DPAD_DOWN) {
+        fovy -= 1.0f;
+        update_projection_view(fovy);
+      }
+      if (state->buttons & CONT_DPAD_UP) {
+        fovy += 1.0f;
+        update_projection_view(fovy);
       }
     }
-  } else {
-    dpad_right_down = 0;
   }
-  if (abs(state->joyx) > 16)
-    cube_state.pos.x += XSCALE * (state->joyx / 1.0f); // Increased sensitivity
-  if (abs(state->joyy) > 16)
-    cube_state.pos.y +=
-        (state->joyy / 1.0f); // Increased sensitivity and inverted Y
-  if (state->ltrig > 16)      // Left trigger to zoom out
-    cube_state.pos.z -= (state->ltrig / 1.0f) * ZOOM_SPEED;
-  if (state->rtrig > 16) // Right trigger to zoom in
-    cube_state.pos.z += (state->rtrig / 1.f) * ZOOM_SPEED;
-  // if (cube_state.pos.z < MIN_ZOOM)
-  //   cube_state.pos.z = MIN_ZOOM; // Farther away
-  // if (cube_state.pos.z > MAX_ZOOM)
-  //   cube_state.pos.z = MAX_ZOOM; // Closer to the screen
-  if (state->buttons & CONT_X)
-    cube_state.speed.y += 0.001f;
-  if (state->buttons & CONT_B)
-    cube_state.speed.y -= 0.001f;
-  if (state->buttons & CONT_A)
-    cube_state.speed.x += 0.001f;
-  if (state->buttons & CONT_Y)
-    cube_state.speed.x -= 0.001f;
-  if (state->buttons & CONT_DPAD_LEFT) {
-    fovy = DEFAULT_FOV;
-    cube_reset_state();
-  }
-  if (state->buttons & CONT_DPAD_DOWN) {
-    fovy -= 1.0f;
-    update_projection_view(fovy);
-  }
-  if (state->buttons & CONT_DPAD_UP) {
-    fovy += 1.0f;
-    update_projection_view(fovy);
-  }
-  MAPLE_FOREACH_END()
   cube_state.rot.x += cube_state.speed.x;
   cube_state.rot.y += cube_state.speed.y;
   cube_state.speed.x *= 0.99f;
   cube_state.speed.y *= 0.99f;
   return 1;
 }
-extern uint8 romdisk[];
+
+
 KOS_INIT_FLAGS(INIT_DEFAULT | INIT_MALLOCSTATS);
 
 int main(int argc, char *argv[]) {
