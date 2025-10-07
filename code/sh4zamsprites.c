@@ -71,12 +71,16 @@ static dttex_info_t texture128 __attribute__((aligned(32)));
 static dttex_info_t texture32 __attribute__((aligned(32)));
 
 static inline void set_cube_transform() {
-  shz_xmtrx_load_4x4(&stored_projection_view);
-  shz_xmtrx_apply_translation(cube_state.pos.x, cube_state.pos.y,
+  shz_mat4x4_t wmat __attribute__((aligned(32))) = {0};
+  shz_xmtrx_init_translation(cube_state.pos.x, cube_state.pos.y,
                               cube_state.pos.z);
   shz_xmtrx_apply_scale(MODEL_SCALE * XSCALE, MODEL_SCALE, MODEL_SCALE);
   shz_xmtrx_apply_rotation_x(cube_state.rot.x);
   shz_xmtrx_apply_rotation_y(cube_state.rot.y);
+  shz_xmtrx_store_4x4(&wmat);
+
+  shz_xmtrx_load_4x4(&stored_projection_view);
+  shz_xmtrx_apply_4x4(&wmat);
 }
 
 static inline void draw_textured_sprite(shz_vec4_t *tverts, uint32_t side,
@@ -118,10 +122,9 @@ void render_txr_tr_cube(void) {
 
   for (int i = 0; i < 8; i++) {
     tverts[i] = shz_xmtrx_transform_vec4(cube_vertices[i]);
-    tverts[i].w = shz_invf_fsrra(tverts[i].w);
-    tverts[i].x *= tverts[i].w;
-    tverts[i].y *= tverts[i].w;
-    tverts[i].z *= tverts[i].w;
+    tverts[i].z = shz_invf_fsrra(tverts[i].w);
+    tverts[i].x *= tverts[i].z;
+    tverts[i].y *= tverts[i].z;
   }
 
   pvr_dr_state_t dr_state;
@@ -237,10 +240,9 @@ void render_cubes_cube() {
                                                   .z = cube_pos.z,
                                                   .w = 1.0f})};
         for (int i = 0; i < 8; i++) {
-          tverts[i].w = shz_invf_fsrra(tverts[i].w); // 1/w
-          tverts[i].x *= tverts[i].w;
-          tverts[i].y *= tverts[i].w;
-          tverts[i].z *= tverts[i].w;
+          tverts[i].z = shz_invf_fsrra(tverts[i].w); // 1/w
+          tverts[i].x *= tverts[i].z;
+          tverts[i].y *= tverts[i].z;
         }
         for (int i = 0; i < 6; i++) {
           draw_textured_sprite(tverts, i, &dr_state);
@@ -319,10 +321,9 @@ void render_wire_grid(shz_vec4_t *min, shz_vec4_t *max, shz_vec4_t *dir1,
 
     for (int i = 0; i < 4; i++) {
       twolines[i] = shz_xmtrx_transform_vec4(twolines[i]);
-      twolines[i].w = shz_invf_fsrra(twolines[i].w); // 1/w
-      twolines[i].x *= twolines[i].w;
-      twolines[i].y *= twolines[i].w;
-      twolines[i].z *= twolines[i].w;
+      twolines[i].z = shz_invf_fsrra(twolines[i].w); // 1/w
+      twolines[i].x *= twolines[i].z;
+      twolines[i].y *= twolines[i].z;
     }
 
     draw_sprite_line(from_v, to_v, 0, dr_state);
@@ -336,10 +337,9 @@ void render_wire_cube(void) {
   shz_vec4_t tverts[8] __attribute__((aligned(32))) = {0};
   for (int i = 0; i < 8; i++) {
     tverts[i] = shz_xmtrx_transform_vec4(cube_vertices[i]);
-    tverts[i].w = shz_invf_fsrra(tverts[i].w);
-    tverts[i].x *= tverts[i].w;
-    tverts[i].y *= tverts[i].w;
-    tverts[i].z *= tverts[i].w;
+    tverts[i].z = shz_invf_fsrra(tverts[i].w);
+    tverts[i].x *= tverts[i].z;
+    tverts[i].y *= tverts[i].z;
   }
   pvr_dr_state_t dr_state;
   pvr_sprite_cxt_t cxt;
