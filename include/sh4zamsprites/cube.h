@@ -19,7 +19,7 @@
 
 #define CUBEEXTENT 1.0f
 
-static shz_vec4_t cube_vertices[8] __attribute__((aligned(32))) = {
+static alignas(32) shz_vec4_t cube_vertices[8] = {
     {.x = -CUBEEXTENT, .y = -CUBEEXTENT, .z = +CUBEEXTENT, 1.0f}, // 0
     {.x = -CUBEEXTENT, .y = +CUBEEXTENT, .z = +CUBEEXTENT, 1.0f}, // 1
     {.x = +CUBEEXTENT, .y = -CUBEEXTENT, .z = +CUBEEXTENT, 1.0f}, // 2
@@ -30,7 +30,7 @@ static shz_vec4_t cube_vertices[8] __attribute__((aligned(32))) = {
     {.x = -CUBEEXTENT, .y = +CUBEEXTENT, .z = -CUBEEXTENT, 1.0f}  // 7
 };
 
-const uint8_t cube_side_strips[6][4] __attribute__((aligned(32))) = {
+const alignas(32) uint8_t cube_side_strips[6][4] = {
     {0, 1, 2, 3}, // Front, 0->1->2 & 2->1->3
     {4, 5, 6, 7}, // Back, 4->5->6 & 6->5->7
     {6, 7, 0, 1}, // Left, 6->7->0 & 0->7->1
@@ -39,7 +39,7 @@ const uint8_t cube_side_strips[6][4] __attribute__((aligned(32))) = {
     {6, 0, 4, 2}  // Bottom, 6->0->4 & 4->0->2
 };
 
-const uint32_t cube_side_colors[6] __attribute__((aligned(32))) = {
+const alignas(32) uint32_t cube_side_colors[6] = {
     // format: 0xAARRGGBB
     0x7FF00000, // Red
     0x7F007F00, // Green
@@ -49,7 +49,7 @@ const uint32_t cube_side_colors[6] __attribute__((aligned(32))) = {
     0x7F007F7F  // Magenta
 };
 
-struct cube {
+ alignas(32) struct cube {
   struct {
     float x, y, z;
   } pos;
@@ -60,9 +60,9 @@ struct cube {
     float x, y;
   } speed;
   uint32_t grid_size;
-} cube_state __attribute__((aligned(32))) = {0};
+} cube_state = {0};
 
-const float cube_tex_coords[4][2] __attribute__((aligned(32))) = {
+const alignas(32) float cube_tex_coords[4][2] = {
   {1, 1}, // right bottom
   {1, 0}, // right top
   {0, 1}, // left bottom

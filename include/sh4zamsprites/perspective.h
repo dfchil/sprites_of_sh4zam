@@ -11,7 +11,7 @@
 #endif
 
 void print_matrix(const char *label) {
-  shz_mat4x4_t mtrx __attribute__((aligned(32))) = {0};
+  alignas(32) shz_mat4x4_t mtrx = {0};
   shz_xmtrx_store_4x4(&mtrx);
 
   printf("%s\n", label);
@@ -23,7 +23,7 @@ void print_matrix(const char *label) {
   }
 }
 
-shz_mat4x4_t stored_projection_view __attribute__((aligned(32))) = {0};
+alignas(32) shz_mat4x4_t stored_projection_view = {0};
 void update_projection_view(float fovy) {
   mat_identity();
   float radians = fovy * F_PI / 180.0f;
@@ -39,7 +39,7 @@ void update_projection_view(float fovy) {
 
 // TODO: get this code to work the same way as the old one above
 
-// shz_mat4x4_t stored_projection_view __attribute__((aligned(32))) = {0};
+// shz_mat4x4_t stored_projection_view alignas(32) = {0};
 // void update_projection_view(float fovy) {
 //   float radians = fovy * F_PI / 180.0f;
 //   float cot_fovy_2 = 1.0f / ftan(radians * 0.5f);
