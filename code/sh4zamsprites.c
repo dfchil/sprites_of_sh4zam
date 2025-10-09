@@ -22,7 +22,10 @@
 #else
 #define XSCALE 1.0f
 #endif
-#define FRAMETIMES
+
+#ifndef SHOWFRAMETIMES
+#define SHOWFRAMETIMES 0
+#endif
 
 #include <sh4zamsprites/cube.h> /* Cube vertices and side strips layout */
 #include <sh4zamsprites/perspective.h> /* Perspective projection matrix functions */
@@ -53,27 +56,28 @@ static render_mode_e render_mode = TEXTURED_TR;
 static float fovy = DEFAULT_FOV;
 static uint32_t dpad_right_down = 0;
 
-static const uint8_t texture256_raw[] __attribute__((aligned(32))) = {
+static  const  alignas(32)  uint8_t texture256_raw[] = {
 #embed "../build/pvrtex/rgb565_vq_tw/sh4zam256.dt"
 };
-static const uint8_t texture128_raw[] __attribute__((aligned(32))) = {
+static const alignas(32) uint8_t texture128_raw[] = {
 #embed "../build/pvrtex/argb1555_vq_tw/sh4zam128_t.dt"
 };
-static const uint8_t texture32_raw[] __attribute__((aligned(32))) = {
+static const alignas(32) uint8_t texture32_raw[]  = {
 #embed "../build/pvrtex/pal4/sh4zam32_w.dt"
+// #embed "../build/pvrtex/rgb565_vq_tw/sh4zam32.dt"
 };
-static const uint8_t palette32_raw[] __attribute__((aligned(32))) = {
+static const alignas(32) uint8_t palette32_raw[]  = {
 #embed "../build/pvrtex/pal4/sh4zam32_w.dt.pal"
 };
 
-static dttex_info_t texture256 __attribute__((aligned(32)));
-static dttex_info_t texture128 __attribute__((aligned(32)));
-static dttex_info_t texture32 __attribute__((aligned(32)));
+static alignas(32) dttex_info_t texture256x256;
+static alignas(32) dttex_info_t texture128x128;
+static alignas(32) dttex_info_t texture32x32;
 
 static inline void set_cube_transform() {
-  shz_mat4x4_t wmat __attribute__((aligned(32))) = {0};
+  alignas(32) shz_mat4x4_t wmat = {0};
   shz_xmtrx_init_translation(cube_state.pos.x, cube_state.pos.y,
-                              cube_state.pos.z);
+                             cube_state.pos.z);
   shz_xmtrx_apply_scale(MODEL_SCALE * XSCALE, MODEL_SCALE, MODEL_SCALE);
   shz_xmtrx_apply_rotation_x(cube_state.rot.x);
   shz_xmtrx_apply_rotation_y(cube_state.rot.y);
@@ -118,7 +122,7 @@ static inline void draw_textured_sprite(shz_vec4_t *tverts, uint32_t side,
 
 void render_txr_tr_cube(void) {
   set_cube_transform();
-  shz_vec4_t tverts[8] __attribute__((aligned(32))) = {0};
+  alignas(32) shz_vec4_t tverts[8] = {0};
 
   for (int i = 0; i < 8; i++) {
     tverts[i] = shz_xmtrx_transform_vec4(cube_vertices[i]);
@@ -129,8 +133,8 @@ void render_txr_tr_cube(void) {
 
   pvr_dr_state_t dr_state;
   pvr_sprite_cxt_t cxt;
-  pvr_sprite_cxt_txr(&cxt, PVR_LIST_TR_POLY, texture256.pvrformat,
-                     texture256.width, texture256.height, texture256.ptr,
+  pvr_sprite_cxt_txr(&cxt, PVR_LIST_TR_POLY, texture256x256.pvrformat,
+                     texture256x256.width, texture256x256.height, texture256x256.ptr,
                      PVR_FILTER_BILINEAR);
   cxt.gen.specular = PVR_SPECULAR_ENABLE;
   cxt.gen.culling = PVR_CULLING_NONE;
@@ -158,20 +162,20 @@ void render_cubes_cube() {
   pvr_sprite_cxt_col(&cxt, list_type);
   uint32_t cuberoot_cubes = 3;
   if (render_mode == CUBES_CUBE_MAX) {
-    cuberoot_cubes = 17 - SUPERSAMPLING * 2.0f;
+    cuberoot_cubes = 17 - (SUPERSAMPLING * 1);
     // 15x15x15 cubes, 6 faces per cube, 2 triangles per face @60 fps ==
     // 2430000 triangles pr. second 17*17*16 cubes, or 3329280 triangles pr.
     // second, works with FSAA disabled, set #define SUPERSAMPLING 0
     pvr_sprite_cxt_txr(
-        &cxt, list_type, texture32.pvrformat | PVR_TXRFMT_4BPP_PAL(16),
-        texture32.width, texture32.height, texture32.ptr, PVR_FILTER_BILINEAR);
-    cxt.gen.specular = PVR_SPECULAR_DISABLE;
+        &cxt, list_type, texture32x32.pvrformat | PVR_TXRFMT_4BPP_PAL(16),
+        texture32x32.width, texture32x32.height, texture32x32.ptr, PVR_FILTER_BILINEAR);
+    // cxt.gen.specular = PVR_SPECULAR_DISABLE;
   } else {
-    pvr_sprite_cxt_txr(&cxt, list_type, texture128.pvrformat, texture128.width,
-                       texture128.height, texture128.ptr, PVR_FILTER_NEAREST);
-    cxt.gen.specular = PVR_SPECULAR_ENABLE;
-    cxt.gen.culling = PVR_CULLING_NONE;
+    pvr_sprite_cxt_txr(&cxt, list_type, texture128x128.pvrformat, texture128x128.width,
+                       texture128x128.height, texture128x128.ptr, PVR_FILTER_NEAREST);
   }
+  cxt.gen.specular = PVR_SPECULAR_ENABLE;
+  cxt.gen.culling = PVR_CULLING_NONE;
   pvr_dr_state_t dr_state;
   pvr_dr_init(&dr_state);
   pvr_sprite_hdr_t hdr;
@@ -208,7 +212,7 @@ void render_cubes_cube() {
         shz_vec4_t cube_pos = {cube_min->x + cube_step.x * (float)cx,
                                cube_min->y + cube_step.y * (float)cy,
                                cube_min->z + cube_step.z * (float)cz, 1.0f};
-        shz_vec4_t tverts[8] __attribute__((aligned(32))) = {
+        alignas(32) shz_vec4_t tverts[8] = {
             shz_xmtrx_transform_vec4((shz_vec4_t){.x = cube_pos.x,
                                                   .y = cube_pos.y,
                                                   .z = cube_pos.z + cube_size.z,
@@ -244,8 +248,26 @@ void render_cubes_cube() {
           tverts[i].x *= tverts[i].z;
           tverts[i].y *= tverts[i].z;
         }
-        for (int i = 0; i < 6; i++) {
-          draw_textured_sprite(tverts, i, &dr_state);
+        // backface culling
+        for (int side = 0; side < 6; side++) {
+          shz_vec3_t cross = shz_vec3_cross(
+              (shz_vec3_t){.x = tverts[cube_side_strips[side][1]].x -
+                                 tverts[cube_side_strips[side][0]].x,
+                            .y = tverts[cube_side_strips[side][1]].y -
+                                 tverts[cube_side_strips[side][0]].y,
+                            .z = tverts[cube_side_strips[side][1]].z -
+                                 tverts[cube_side_strips[side][0]].z},
+              (shz_vec3_t){.x = tverts[cube_side_strips[side][2]].x -
+                                 tverts[cube_side_strips[side][0]].x,
+                            .y = tverts[cube_side_strips[side][2]].y -
+                                 tverts[cube_side_strips[side][0]].y,
+                            .z = tverts[cube_side_strips[side][2]].z -
+                                 tverts[cube_side_strips[side][0]].z});
+          // printf("cross.z: %f\n", cross.z);
+          if (cross.z > 0.0f) {
+            continue;
+          }
+          draw_textured_sprite(tverts, side, &dr_state);
         }
       };
     }
@@ -296,7 +318,7 @@ void render_wire_grid(shz_vec4_t *min, shz_vec4_t *max, shz_vec4_t *dir1,
     hdrpntr->argb = color;
     pvr_dr_commit(hdrpntr);
   }
-  shz_vec4_t twolines[4] __attribute__((aligned(32))) = {0};
+  alignas(32) shz_vec4_t twolines[4] = {0};
   shz_vec4_t *from_v = twolines + 0;
   shz_vec4_t *to_v = twolines + 1;
   shz_vec4_t *from_h = twolines + 2;
@@ -334,7 +356,7 @@ void render_wire_grid(shz_vec4_t *min, shz_vec4_t *max, shz_vec4_t *dir1,
 
 void render_wire_cube(void) {
   set_cube_transform();
-  shz_vec4_t tverts[8] __attribute__((aligned(32))) = {0};
+  alignas(32) shz_vec4_t tverts[8] = {0};
   for (int i = 0; i < 8; i++) {
     tverts[i] = shz_xmtrx_transform_vec4(cube_vertices[i]);
     tverts[i].z = shz_invf_fsrra(tverts[i].w);
@@ -495,10 +517,12 @@ static inline int update_state() {
   return 1;
 }
 
-
 KOS_INIT_FLAGS(INIT_DEFAULT | INIT_MALLOCSTATS);
 
 int main(int argc, char *argv[]) {
+
+printf("showframetimes: %d\n", SHOWFRAMETIMES);
+
 #ifdef DEBUG
   gdb_init();
 #endif
@@ -515,13 +539,13 @@ int main(int argc, char *argv[]) {
   };
   pvr_init(&params);
   pvr_set_bg_color(0, 0, 0);
-  if (!pvrtex_load_blob(&texture256_raw, &texture256))
+  if (!pvrtex_load_blob(&texture256_raw, &texture256x256))
     return -1;
-  if (!pvrtex_load_blob(&texture128_raw, &texture128))
+  if (!pvrtex_load_blob(&texture128_raw, &texture128x128))
     return -1;
   // if (!pvrtex_load_palette_blob(palette64_raw, PVR_PAL_ARGB1555, 0))
   //   return -1;
-  if (!pvrtex_load_blob(&texture32_raw, &texture32))
+  if (!pvrtex_load_blob(&texture32_raw, &texture32x32))
     return -1;
   if (!pvrtex_load_palette_blob(palette32_raw, PVR_PAL_RGB565, 256))
     return -1;
@@ -529,11 +553,11 @@ int main(int argc, char *argv[]) {
   cube_reset_state();
 
   while (update_state()) {
-#ifdef FRAMETIMES
+#if SHOWFRAMETIMES == 1
     vid_border_color(255, 0, 0);
 #endif
     pvr_wait_ready();
-#ifdef FRAMETIMES
+#if SHOWFRAMETIMES == 1
     vid_border_color(0, 255, 0);
 #endif
     pvr_scene_begin();
@@ -562,15 +586,15 @@ int main(int argc, char *argv[]) {
     default:
       break;
     }
-#ifdef FRAMETIMES
+#if SHOWFRAMETIMES == 1
     vid_border_color(0, 0, 255);
 #endif
     pvr_scene_finish();
   }
   printf("Cleaning up\n");
-  pvrtex_unload(&texture256);
-  pvrtex_unload(&texture128);
-  pvrtex_unload(&texture32);
+  pvrtex_unload(&texture256x256);
+  pvrtex_unload(&texture128x128);
+  pvrtex_unload(&texture32x32);
   pvr_shutdown(); // Clean up PVR resources
   vid_shutdown(); // This function reinitializes the video system to what
                   // dcload and friends expect it to be Run the main
