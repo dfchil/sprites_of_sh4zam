@@ -10,70 +10,109 @@
 #define XSCALE 1.0f
 #endif
 
-void print_matrix(const char *label) {
-  alignas(32) shz_mat4x4_t mtrx = {0};
-  shz_xmtrx_store_4x4(&mtrx);
+#define XCENTER 0.0f
+#define YCENTER 0.0f
+#define COT_FOVY_2 1.0f
+#define ZNEAR 1.0f
+#define ZFAR 100.0f
 
-  printf("%s\n", label);
-  for (int i = 0; i < 4; i++) {
-    for (int j = 0; j < 4; j++) {
-      printf("%f ", mtrx.elem2D[i][j]);
+/* Screen view matrix template (used to transform to screen space) */
+static alignas(32) shz_mat4x4_t scrn_mtrx = {
+    .elem2D = {
+      { YCENTER, 0.0f,    0.0f, 0.0f},
+      { 0.0f,    YCENTER, 0.0f, 0.0f},
+      { 0.0f,    0.0f,    1.0f, 0.0f},
+      { XCENTER, YCENTER, 0.0f, 1.0f}
     }
-    printf("\n");
+  };
+
+/* Frustum matrix template (does perspective) */
+static alignas(32) shz_mat4x4_t p_mtrx = {
+  .elem2D = {
+    { COT_FOVY_2, 0.0f,       0.0f,                            0.0f},
+    { 0.0f,       COT_FOVY_2, 0.0f,                            0.0f},
+    { 0.0f,       0.0f,       (ZFAR + ZNEAR) / (ZNEAR - ZFAR), -1.0f},
+    { 0.0f,       0.0f,       2 * ZFAR *ZNEAR / (ZNEAR - ZFAR), 1.0f}
   }
+};
+
+/**
+ * Create and apply a perspective projection matrix to the current matrix
+ * stack.
+ * My backport of the mat_perspective function from KallistiOS's matrix3d.h
+ * 
+ * \param screen_width The width of the screen, in pixels.
+ * \param screen_height The height of the screen, in pixels.
+ * \param fovy The field of view angle, in degrees, in the y direction.
+ * \param near_z The distance to the near clipping plane.
+ * \param far_z The distance to the far clipping plane.
+ */
+void kos_perspective(float screen_width, float screen_height, float fovy,
+                    float near_z, float far_z) {
+  scrn_mtrx.elem2D[0][0] = scrn_mtrx.elem2D[1][1] = scrn_mtrx.elem2D[3][1] =
+      screen_height * 0.5f;
+  scrn_mtrx.elem2D[3][0] = screen_width * 0.5f;
+  shz_xmtrx_apply_4x4(&scrn_mtrx);
+
+  float cot_fovy_2 = shz_invf_fsrra(shz_tanf(-(fovy * F_PI / 180.0f) * 0.5f));
+  shz_mat4x4_set_scale(&p_mtrx, cot_fovy_2, cot_fovy_2, (far_z + near_z) / (near_z - far_z));
+  p_mtrx.elem2D[3][2] = (2.0f * far_z * near_z) / (near_z - far_z);
+
+  shz_xmtrx_apply_4x4(&p_mtrx);
+}
+
+#define SHZ_IDENTITY_MAT4X4_TMPLATE { \
+  .elem2D = { \
+    { 1.0f, 0.0f, 0.0f, 0.0f }, \
+    { 0.0f, 1.0f, 0.0f, 0.0f }, \
+    { 0.0f, 0.0f, 1.0f, 0.0f }, \
+    { 0.0f, 0.0f, 0.0f, 1.0f } \
+} } 
+
+/* lookAt matrix template */
+static alignas(32) shz_mat4x4_t lookAt_mtrx = SHZ_IDENTITY_MAT4X4_TMPLATE;
+
+/* translation matrix template */
+static alignas(32) shz_mat4x4_t translation_mtrx = SHZ_IDENTITY_MAT4X4_TMPLATE;
+
+/**
+ * Create and apply a lookAt matrix to the current matrix stack.
+ * My backport of the mat_lookAt function from KallistiOS's matrix3d.h
+ * 
+ * \param eye The position of the camera.
+ * \param center The point the camera is looking at.
+ * \param up The up vector.
+ */
+void kos_lookAt(const shz_vec3_t eye, const shz_vec3_t center,
+               const shz_vec3_t up) {
+  shz_vec3_t forward = shz_vec3_normalize(shz_vec3_sub(center, eye));
+  lookAt_mtrx.left.vec3 = shz_vec3_normalize(shz_vec3_cross(forward, up));
+  lookAt_mtrx.up.vec3 = shz_vec3_cross(lookAt_mtrx.left.vec3, forward);
+  lookAt_mtrx.forward.vec3 = (shz_vec3_t){
+    .x = -forward.x,
+    .y = -forward.y,
+    .z = -forward.z
+  };
+  shz_xmtrx_apply_4x4(&lookAt_mtrx);
+
+  translation_mtrx.pos.vec3 = (shz_vec3_t){ .e = { -eye.x, -eye.y, -eye.z} };
+  shz_xmtrx_apply_4x4(&translation_mtrx);
 }
 
 alignas(32) shz_mat4x4_t stored_projection_view = {0};
 void update_projection_view(float fovy) {
-  mat_identity();
-  float radians = fovy * F_PI / 180.0f;
-  float cot_fovy_2 = 1.0f / ftan(radians * 0.5f);
-  mat_perspective(XSCALE * 320.0f, 240.0f, cot_fovy_2, -10.f, +10.0f);
+  shz_xmtrx_init_identity();
+  kos_perspective(640.0f * XSCALE, 480.0f, fovy, 0.f, -10.0f);
 
-  point_t eye = {0.f, -0.00001f, 20.0f};
-  point_t center = {0.f, 0.f, 0.f};
-  vector_t up = {0.f, 0.f, 1.f};
-  mat_lookat(&eye, &center, &up);
-  mat_store((matrix_t*)(&stored_projection_view));
+  kos_lookAt(
+            (shz_vec3_t){ .e = { 0.f, -0.00001f, 20.0f }}, 
+            (shz_vec3_t){ .e = { 0.f, 0.f, 0.f }},
+            (shz_vec3_t){ .e = { 0.f, 0.f, 1.f }});
+  // shz_xmtrx_apply_lookat(
+  //           (shz_vec3_t){0.f, -0.00001f, 20.0f}, 
+  //           (shz_vec3_t){0.f, 0.f, 0.f},
+  //           (shz_vec3_t){0.f, 0.f, 1.f});
+
+  shz_xmtrx_store_4x4(&stored_projection_view);
 }
-
-// TODO: get this code to work the same way as the old one above
-
-// shz_mat4x4_t stored_projection_view alignas(32) = {0};
-// void update_projection_view(float fovy) {
-//   float radians = fovy * F_PI / 180.0f;
-//   float cot_fovy_2 = 1.0f / ftan(radians * 0.5f);
-
-//   shz_xmtrx_init_identity();
-//   // print_matrix("Identity Matrix:");
-
-//   shz_xmtrx_apply_perspective(radians, 320.0f * XSCALE / 240.0f, 10.0f);
-//   // print_matrix("After Perspective Matrix:");
-
-//   shz_xmtrx_apply_screen(320.0f * XSCALE, 240.0f);
-//   // print_matrix("After Screen Matrix:");
-
-//   const float eye[3] = {0.f, -0.1f, 20.0f};
-//   const float center[3] = {320.0f * XSCALE, 240.0f, 0.f};
-//   const float up[3] = {0.f, 0.f, 1.f};
-//   shz_xmtrx_apply_lookat(eye, center, up);
-//   // print_matrix("After LookAt Matrix:");
-
-//   shz_xmtrx_store_4x4(&stored_projection_view);
-
-//   // TODO: get values more like these in my transformation matrix
-//   memcpy(&stored_projection_view.elem, &(float[16]){
-//     312.815460f, 0.0f, 0.0f, 0.0f,
-//     0.000320f, 312.815582f, 0.0f, 0.0f,
-//     -640.0f,-239.999847f, 0.0f,-1.0f,
-//     13440.0f, 5040.0f, 10.0f,21.0f
-//   }, sizeof(stored_projection_view));
-//   shz_xmtrx_load_4x4(&stored_projection_view);
-//   // // print_matrix("Manually Set Projection-View Matrix:");
-
-// // dc-tool-ip: mat[0]: 312.815460,0.000000,0.000000,0.000000,
-// // dc-tool-ip: mat[1]: 0.000320,312.815582,0.000000,0.000000,
-// // dc-tool-ip: mat[2]: -640.000000,-239.999847,0.000000,-1.000000,
-// // dc-tool-ip: mat[3]: 13440.000000,5040.000000,10.000000,21.000000,}
-// }
 #endif // PERSPECTIVE_H
